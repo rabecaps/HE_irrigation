@@ -14,10 +14,9 @@ Basics: ESP LoLin NodeMCU v3 Node MCU running Hubduino / ST Anything - only mod 
 I have set up 8 zones. 
 This consists of an 8 relay board which Hubduino exposes as 8 relays.
 I set up 8 global variables in RM with 8 connectors to dimmers and 8 to variables, one for each relay.
-I set up a dashboard called Watering Controll that has 8 dimmer sliders that can be used to set the water time or turned off the skip a zone. There is a weather linked switch to Weather underground that looks for more than 5mm in last 24 hours or more than 5mm forecast. There is also a manual override for Winter watering bans. These are covered in Bryans code already.
+I set up a dashboard called Watering Control that has 8 dimmer sliders that can be used to set the water time or be turned off to skip a zone. There is a weather linked switch to Weather underground that looks for more than 5mm in last 24 hours or more than 5mm forecast. There is also a manual override for winter watering bans. These are covered in Bryans code already.
 
 I modified the Simple Irrigation timer to ask for these variables and controls and set it to loop through the 8 zones sequentially.
+I think that I would like to reinstate the turnSwitchoff function as I pulled this all into one function (if that is even the right term). It works but is less elegent but I made that change early on.
 
 I dont really know how github works either ;-)
-
-  
