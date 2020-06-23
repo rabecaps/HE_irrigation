@@ -16,4 +16,6 @@ I set up a dashboard called Watering Controll that has 8 dimmer sliders that can
 
 I modified the Simple Irrigation timer to ask for these variables and controls and set it to loop through the 8 zones sequentially.
 
+I dont really know how github works either ;-)
+
   
