@@ -65,7 +65,7 @@ definition(
     category: "Convenience",
     iconUrl: "",
     iconX2Url: "",
-    iconX3Url: ""
+    iconX3Url: "Update URL: https://raw.githubusercontent.com/rabecaps/HE_irrigation/master/Hubduino%20Simple%20Irrigation.groovy"
 )
 
 preferences {

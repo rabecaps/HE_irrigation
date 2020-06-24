@@ -78,7 +78,7 @@ definition(
     iconUrl: "",
     iconX2Url: "",
     iconX3Url: "",
-	importUrl: "https://raw.githubusercontent.com/",
+	importUrl: "https://raw.githubusercontent.com/rabecaps/HE_irrigation/master/Hubduino%20Simple%20Irrigation%20Child.groovy",
 )
 
 preferences {
@@ -220,23 +220,24 @@ def turnSwitchOn() {
 				        if(sendPushMessage) pushHandler()
                         int delay1 = delay * 1000
                         pauseExecution(delay1)
-				        
-                        relayDevice.off()
-                        state.relayStatus = relayDevice.currentValue("switch", true)
-                        state.msg = "${relayDevice} is now ${state.relayStatus}"
-                        if(sendPushMessage) pushHandler(errorMsg)
-                        pauseExecution(10000) // pause 10s between zones
+                        // move this back to it's own function now that I understand how it works.				        
+                        // relayDevice.off()
+                        // state.relayStatusOff = relayDevice.currentValue("switch", true)
+                        // state.msg = "${relayDevice} is now ${state.relayStatusoff}"
+                        // if(sendPushMessage) pushHandler(errorMsg)
+                        // pauseExecution(10000) // pause 10s between zones
+                        turnSwitchOff(relayDevice)
                     } else {
                         log.debug "==> Opps switch was already on. Something failed or was in the wrong state?"
                         def String errorMsg = "Error: Watering Failure - One of the Zones was on! You had better check"
                         if(sendPushMessage) pushHandler(errorMsg)
                     }
                 } else {
-                    log.debug "Skipping zone manually switched off"
+                    log.debug "Skipping zone manually switched off on Dashboard"
                     exit
                 }
 		        } else {
-                    log.info "${app.label} Didn't pass weather check. ${relayDevice} not turned on."
+                    log.info "${app.label} Didn't pass weather check. Must have rained ${relayDevice} not turned on."
 			        relayDevice.off()
                     def String errorMsg = "Status: Watering skipped - Not watering today as Manual or Rain restrictions in place"
                     if(sendPushMessage) pushHandler(errorMsg)
@@ -246,6 +247,16 @@ def turnSwitchOn() {
 		        state.msg = "${app.label} Didn't pass restriction check - Watering Days. ${relayDevice} will not turn on."
 	}	
 }
+}
+
+def turnSwitchOff(devicePass) {
+    relayOffDevice = devicePass
+    if(logEnable) log.debug "In turnSwitchOff... dow we know which device ==> ${devicePass} & ${relayDevice}"
+    relayOffDevice.off()
+    state.relayStatusOff = relayOffDevice.currentValue("switch", true)
+    state.msg = "${relayOffDevice} is now ${state.relayStatusoff}"
+    if(sendPushMessage) pushHandler(errorMsg)
+    pauseExecution(10000) // pause 10s between zones and then return
 }
 
 def checkForWeather() {
