@@ -251,8 +251,9 @@ def turnSwitchOn() {
 
 def turnSwitchOff(devicePass) {
     relayOffDevice = devicePass
-    if(logEnable) log.debug "In turnSwitchOff... dow we know which device ==> ${devicePass} & ${relayDevice}"
+    if(logEnable) log.debug "In turnSwitchOff... dow we know which device ==> ${devicePass} & ${relayOffDevice}"
     relayOffDevice.off()
+    pauseExecution(1500)
     state.relayStatusOff = relayOffDevice.currentValue("switch", true)
     state.msg = "${relayOffDevice} is now ${state.relayStatusOff}"
     if(sendPushMessage) pushHandler(errorMsg)
