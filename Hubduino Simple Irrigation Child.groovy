@@ -254,7 +254,7 @@ def turnSwitchOff(devicePass) {
     if(logEnable) log.debug "In turnSwitchOff... dow we know which device ==> ${devicePass} & ${relayDevice}"
     relayOffDevice.off()
     state.relayStatusOff = relayOffDevice.currentValue("switch", true)
-    state.msg = "${relayOffDevice} is now ${state.relayStatusoff}"
+    state.msg = "${relayOffDevice} is now ${state.relayStatusOff}"
     if(sendPushMessage) pushHandler(errorMsg)
     pauseExecution(10000) // pause 10s between zones and then return
 }
