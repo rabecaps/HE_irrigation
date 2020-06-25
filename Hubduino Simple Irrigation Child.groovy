@@ -210,7 +210,7 @@ def turnSwitchOn() {
                     if(state.relayStatus == "off") { //check it is currently off - it should be!
                         if(logEnable) log.debug "3: In function turnSwitchOn: ${relayDevice} - about to turn on"
 				        relayDevice.on()
-                        pauseExecution(1000) //just hold your horses for one second
+                        pauseExecution(1000) //time delay to allow update of status
                         state.relayStatus = relayDevice.currentValue("switch", true) //check new status using skipCache - this was tricky to find!
                         if(logEnable) log.debug "4: ${relayDevice} is now set to status: ${state.relayStatus}, delay will be set to: ${delay} seconds"
                         if (state.relayStatus == "on") {log.debug "${relayDevice}: ${state.relayStatus} - turned on successfully"}
@@ -253,7 +253,7 @@ def turnSwitchOff(devicePass) {
     relayOffDevice = devicePass
     if(logEnable) log.debug "In turnSwitchOff... dow we know which device ==> ${devicePass} & ${relayOffDevice}"
     relayOffDevice.off()
-    pauseExecution(1500)
+    pauseExecution(1500) // time delay to allow update of status
     state.relayStatusOff = relayOffDevice.currentValue("switch", true)
     state.msg = "${relayOffDevice} is now ${state.relayStatusOff}"
     if(sendPushMessage) pushHandler(errorMsg)
