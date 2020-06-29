@@ -2,10 +2,9 @@
  *  ****************  Hubduino Simple Irrigation Child App  ****************
  *
  *  Design Usage:
- *  For use with any valve device connected to your hose, like the Orbit Hose Water Timer. Features multiple timers and
- *  restrictions.
+ *  For use with Hubduino. Features multiple timers and restrictions and leverage Hubduino timed relay functions.
  *
- *  Copyright 2019 Bryan Turcotte (@bptworld)
+ *  Copyright 2019 Bryan Turcotte (@bptworld) Heavily modified Brad Filmer (@rabecaps) Copyright 2020
  * 
  *  This App is free.  If you like and use this app, please be sure to give a shout out on the Hubitat forums to let
  *  people know that it exists!  Thanks.
@@ -33,7 +32,7 @@
  *
  *  If modifying this project, please keep the above header intact and add your comments/credits below - Thank you! -  @BPTWorld
  *
- *  App and Driver updates can be found at https://github.com/bptworld/Hubitat/
+ *  App and Driver updates can be found at https://github.com/rabecaps/HE_irrigation
  *  
  *  This app requires four elements to be in place for fully dashboard controlled run. 
  *  1. Global variables set up in RM one for eachZone. 
@@ -44,37 +43,28 @@
  * ------------------------------------------------------------------------------------------------------------------------------
  *
  *  Changes:
+ *  v1.0.3 - 27/06/20 (yes a properly formated date ;-)) refactored to have a main control loop to allow single pushmessage when bypassing for weather rather than one per zone
  *  V1.0.2 - 06/23/20 - updated the startTime to update the dashboard tile.
- *  V1.0.1 - 06/22/20 - Added dimmer capability via connectors and global variables. http://
+ *  V1.0.1 - 06/22/20 - Added dimmer capability via connectors and global variables.
  *  V1.0.0 - 06/21/20 - Modified Initial BPTWorld release of simple Irrigation timer.
- *  Based on v2.0.0 Simple Irrigation Timer
+ *  Based on v2.0.0 Simple Irrigation Timer by @BPTWORLD
  */
 
 
 def setVersion(){
     // *  V2.0.0 - 08/18/19 - Now App Watchdog compliant
-	if(logEnable) log.debug "In setVersion - App Watchdog Child app code"
-    // Must match the exact name used in the json file. ie. AppWatchdogParentVersion, AppWatchdogChildVersion or AppWatchdogDriverVersion
-    state.appName = "HubduinoSimpleIrrigationChild"
-	state.version = "v2.0.0"
-    
-    try {
-        if(parent.sendToAWSwitch && parent.awDevice) {
-            awInfo = "${state.appName}:${state.version}"
-		    parent.awDevice.sendAWinfoMap(awInfo)
-            if(logEnable) log.debug "In setVersion - Info was sent to App Watchdog"
-            schedule("0 0 3 ? * * *", setVersion)
-	    }
-    } catch (e) { log.error "In setVersion - ${e}" }
+	state.appName = "HubduinoSimpleIrrigationChild"
+	state.version = "v1.0.3"
+    // removed app watchdog code
 }
 
 definition(
     name: "Hubduino Simple Irrigation Child",
-    namespace: "BPTWorld",
+    namespace: "rabecaps",
     author: "Bryan Turcotte - Original - Brad Filmer Modifications 2020",
     description: "For use with Hubduino and multi-relay boards for irrigation control. Features multiple timers and weather / zone restrictions with ability to use dimmer sliders to set runtime on dashboard and control zones.",
     category: "Convenience",
-	parent: "BPTWorld:Hubduino Simple Irrigation",
+	parent: "rabecaps:Hubduino Simple Irrigation",
     iconUrl: "",
     iconX2Url: "",
     iconX3Url: "",
@@ -90,7 +80,7 @@ def pageConfig() {
 		display() 
         section("Instructions:", hideable: true, hidden: true) {
 			paragraph "<b>Notes:</b>"
-    		paragraph "For use with Hubduino 8266 and upto 8 Chanel relay board. Features multiple timers and restrictions."
+    		paragraph "For use with Hubduino ESP8266 and upto 8 Chanel relay board. Features multiple timers and restrictions."
 		}
 		section(getFormat("header-green", "${getImage("Blank")}"+" Valve Devices")) {
 			input "relayDevice1", "capability.switch", required: true, title: "Select Zone 1 Relay Device."
@@ -174,13 +164,32 @@ def initialize() {
     setDefaults()
      // cant figure out how to trigger schedule update on dashboard tile change. So push time to dashboard tiles instead
     if(startTime1) {
-        schedule(startTime1, turnSwitchOn, [overwrite: false]) 
-        varwaterTime.setVariable(startTime1)
+        schedule(startTime1, mainControlLoop, [overwrite: false]) 
+        varwaterTime.setVariable(startTime1) //only have one dashboard tile for this at the moment.
     } 
-    if(startTime2) schedule(startTime2, turnSwitchOn, [overwrite: false])
-    if(startTime3) schedule(startTime3, turnSwitchOn, [overwrite: false])
+    if(startTime2) schedule(startTime2, mainControlLoop, [overwrite: false])
+    if(startTime3) schedule(startTime3, mainControlLoop, [overwrite: false])
 }
-	
+
+def mainControlLoop() {
+    dayOfTheWeekHandler()
+    checkForWeather()
+        //check it is the right day for watering.
+        if(state.daysMatch == "yes") { 
+		    // check the weather switch and winter mode which is set from WU custom and a combination of rainToday >5 and rainTomorrow >5 and written to virtual switch
+            if(state.canWater == "yes") {
+            turnSwitchOn()
+            } else {
+                log.info "${app.label} Didn't pass weather check. Must have rained ${relayDevice} not turned on."
+                def String errorMsg = "Watering Status: Watering skipped due to rain, weather forecast or Winter bypass"
+                if(sendPushMessage) pushHandler(errorMsg)
+		        }
+	        } else {
+		        log.info "${app.label} Not the right days to water - Water not turned on."
+		        state.msg = "${app.label} Didn't pass restriction check - Watering Days. ${relayDevice} will not turn on."
+	}
+}
+
 def turnSwitchOn() {
     //Create array of hubduino relay devices to allow a single cycle through upto 8 zones.
     def relayArray = [relayDevice1, relayDevice2 ,relayDevice3 ,relayDevice4 ,relayDevice5 ,relayDevice6 ,relayDevice7 ,relayDevice8]
@@ -199,61 +208,39 @@ def turnSwitchOn() {
                 if(logEnable) log.debug "0:== runtime variable update ==> ${runTime} minutes"
                 if(logEnable) log.debug "1:== Relay Device is set to: $relayDevice, status of device is currently: ${state.relayStatus}, delay is set to: $delay seconds"
                 if(logEnable) log.debug "2:== Dashboard manual control status for zone is: ${state.zoneStatus}"
-  	    dayOfTheWeekHandler()
-	    checkForWeather()
-        // checkZoneManualBypass() // Future enhancement - perhaps handle in own function.
-	    //check it is the right day
-        if(state.daysMatch == "yes") { 
-		    // check the weather switch which is set from WU custom and a combination of rainToday >5 and rainTomorrow >5 and written into virtual switch
-            if(state.canWater == "yes") { 
-			    if (state.zoneStatus == "on") { //check that the zone is enabled on the dashboard.
-                    if(state.relayStatus == "off") { //check it is currently off - it should be!
-                        if(logEnable) log.debug "3: In function turnSwitchOn: ${relayDevice} - about to turn on"
-				        relayDevice.on()
-                        pauseExecution(1000) //time delay to allow update of status
-                        state.relayStatus = relayDevice.currentValue("switch", true) //check new status using skipCache - this was tricky to find!
-                        if(logEnable) log.debug "4: ${relayDevice} is now set to status: ${state.relayStatus}, delay will be set to: ${delay} seconds"
-                        if (state.relayStatus == "on") {log.debug "${relayDevice}: ${state.relayStatus} - turned on successfully"}
-            //delay loop  
-                        if(logEnable) log.debug {"5: Valve is now ${state.relayStatus}, Setting timer to turn off in ${runTime} minutes"}
-				        state.msg = "${relayDevice} is now ${state.relayStatus}"
-				        if(sendPushMessage) pushHandler()
-                        int delay1 = delay * 1000
-                        pauseExecution(delay1)
-                        // move this back to it's own function now that I understand how it works.				        
-                        // relayDevice.off()
-                        // state.relayStatusOff = relayDevice.currentValue("switch", true)
-                        // state.msg = "${relayDevice} is now ${state.relayStatusoff}"
-                        // if(sendPushMessage) pushHandler(errorMsg)
-                        // pauseExecution(10000) // pause 10s between zones
+  	     
+	    if (state.zoneStatus == "on") { //check that the zone is enabled on the dashboard.
+            if(state.relayStatus == "off") { //check zone status is currently off - it should be! If not error out
+                if(logEnable) log.debug "3: In function turnSwitchOn: ${relayDevice} - about to turn on"
+			        relayDevice.on()
+                    pauseExecution(1500) //time delay to allow update of status
+                    state.relayStatus = relayDevice.currentValue("switch", true) //check new status using skipCache - this was tricky to find!
+                    if(logEnable) log.debug "4: ${relayDevice} is now set to status: ${state.relayStatus}, delay will be set to: ${delay} seconds"
+                    if (state.relayStatus == "on") {log.debug "${relayDevice}: ${state.relayStatus} - turned on successfully"}
+                //delay loop  
+                    if(logEnable) log.debug {"5: Valve is now ${state.relayStatus}, Setting timer to turn off in ${runTime} minutes"}
+			        state.msg = "${relayDevice} is now ${state.relayStatus}"
+			        if(sendPushMessage) pushHandler()
+                    int delay1 = delay * 1000
+                    pauseExecution(delay1)
                         turnSwitchOff(relayDevice)
-                    } else {
+                } else {
                         log.debug "==> Opps switch was already on. Something failed or was in the wrong state?"
-                        def String errorMsg = "Error: Watering Failure - One of the Zones was on! You had better check"
+                        def String errorMsg = "Error: Watering Failure - The Zones was already on!? You had better check"
                         if(sendPushMessage) pushHandler(errorMsg)
                     }
-                } else {
-                    log.debug "Skipping zone manually switched off on Dashboard"
-                    exit
-                }
-		        } else {
-                    log.info "${app.label} Didn't pass weather check. Must have rained ${relayDevice} not turned on."
-			        relayDevice.off()
-                    def String errorMsg = "Status: Watering skipped - Not watering today as Manual or Rain restrictions in place"
-                    if(sendPushMessage) pushHandler(errorMsg)
-		        }
-	        } else {
-		        log.info "${app.label} Not the right days to water - Water not turned on."
-		        state.msg = "${app.label} Didn't pass restriction check - Watering Days. ${relayDevice} will not turn on."
-	}	
-}
+            } else {
+                    log.debug "Skipping individual zone ${relayDevice} which is manually switched off on Dashboard"
+                    //exit
+                }    	
+    }
 }
 
 def turnSwitchOff(devicePass) {
     relayOffDevice = devicePass
     if(logEnable) log.debug "In turnSwitchOff... dow we know which device ==> ${devicePass} & ${relayOffDevice}"
     relayOffDevice.off()
-    pauseExecution(1500) // time delay to allow update of status
+    pauseExecution(1500) // time delay to allow update of status in the system
     state.relayStatusOff = relayOffDevice.currentValue("switch", true)
     state.msg = "${relayOffDevice} is now ${state.relayStatusOff}"
     if(sendPushMessage) pushHandler(errorMsg)
@@ -287,10 +274,10 @@ def dayOfTheWeekHandler() {
 	if(dayOfTheWeek == 7) state.dotWeek = "Saturday"
 
 	if(days.contains(state.dotWeek)) {
-		if(logEnable) log.debug "In dayOfTheWeekHandler - Days of the Week Passed"
+		if(logEnable) log.debug "In dayOfTheWeekHandler - Yes it is a Watering day :-)"
 		state.daysMatch = "yes"
 	} else {
-		if(logEnable) log.debug "In dayOfTheWeekHandler - Days of the Week Check Failed"
+		if(logEnable) log.debug "In dayOfTheWeekHandler - No it is not a watering day :-("
 		state.daysMatch = "no"
 	}
 }
@@ -340,7 +327,6 @@ def display2(){
     setVersion()
 	section() {
 		paragraph getFormat("line")
-		paragraph "<div style='color:#1A77C9;text-align:center'>Hubduio Simple Irrigation - @BPTWorld<br><a href='https://github.com/rabecaps/Hubitat' target='_blank'> Just new to all this here!</a><br></div>"
+		paragraph "<div style='color:#1A77C9;text-align:center'>Hubduio Simple Irrigation - @rabecaps<br><a href='https://github.com/rabecaps/Hubitat' target='_blank'> New to all this here!</a><br></div>"
 	}       
 }
- //kept for reference==> log.debug "Inside turnSwitchOn - relayDevice is set to: $tempSwitchDevice, ${tempSwitchDevice.currentValue("switch")}, ${relayDevice.currentValue("switch")}"

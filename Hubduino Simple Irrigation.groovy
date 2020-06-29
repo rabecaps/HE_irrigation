@@ -5,7 +5,7 @@
  *  Original - For use with any valve device connected to your hose, like the Orbit Hose Water Timer. Features multiple timers and restrictions.
  *  Modified - For use with Hubduino Relay controls.
  *
- *  Copyright 2019 Bryan Turcotte (@bptworld)
+ *  Copyright 2019 Bryan Turcotte (@bptworld) Heavily Modified Brad Filmer Copyright 2020
  *
  *  This App is free.  If you like and use this app, please be sure to give a shout out on the Hubitat forums to let
  *  people know that it exists!  Thanks.
@@ -29,12 +29,13 @@
  *
  *  If modifying this project, please keep the above header intact and add your comments/credits below - Thank you! -  @BPTWorld
  *
- *  App and Driver updates can be found at https://github.com/bptworld/Hubitat/
+ *  App and Driver updates can be found at https://github.com/rabecaps/HE_irrigation/
  *
  * ------------------------------------------------------------------------------------------------------------------------------
  *
  *  Changes:
- *  V2.0.0 - 06/23/20 - Initial update to Hubduino. Limited changes from original
+ *  v1.0.3 - 27/06/20 - update namespace and header
+ *  V1.0.2 - 06/23/20 - Initial update to Hubduino. Limited changes from original
  *  V1.0.1 - 08/18/19 - Now App Watchdog compliant
  *  V1.0.0 - 04/22/19 - Initial release.
  *
@@ -44,22 +45,13 @@ def setVersion(){
     // *  V2.0.0 - 08/18/19 - Now App Watchdog compliant
 	if(logEnable) log.debug "In setVersion - App Watchdog Parent app code"
     // Must match the exact name used in the json file. ie. AppWatchdogParentVersion, AppWatchdogChildVersion or AppWatchdogDriverVersion
-    state.appName = "Hubduino_Relay_ParentVersion"
-	state.version = "v2.0.0"
-    
-    try {
-        if(sendToAWSwitch && awDevice) {
-            awInfo = "${state.appName}:${state.version}"
-		    awDevice.sendAWinfoMap(awInfo)
-            if(logEnable) log.debug "In setVersion - Info was sent to App Watchdog"
-            schedule("0 0 3 ? * * *", setVersion)
-	    }
-    } catch (e) { log.error "In setVersion - ${e}" }
+    state.appName = "HubduinoSimpleIrrigationParent"
+	state.version = "v1.0.3"    
 }
 
 definition(
     name:"Hubduino Simple Irrigation",
-    namespace: "BPTWorld",
+    namespace: "rabecaps",
     author: "Bryan Turcotte - Original - Brad Filmer - Modifications 2020",
     description: "For use with multiple relay connectors upto 8 via hubduino. Features multiple timers and restrictions, ability to use dimmer sliders to set runtime and disable zones and store and sync via global vars",
     category: "Convenience",
