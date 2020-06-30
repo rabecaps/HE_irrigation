@@ -180,13 +180,13 @@ def mainControlLoop() {
             if(state.canWater == "yes") {
             turnSwitchOn()
             } else {
-                log.info "${app.label} Didn't pass weather check. Must have rained ${relayDevice} not turned on."
+                log.info "${app.label} Didn't pass weather check. Must have rained, Irrigation will not turn."
                 def String errorMsg = "Watering Status: Watering skipped due to rain, weather forecast or Winter bypass"
                 if(sendPushMessage) pushHandler(errorMsg)
 		        }
 	        } else {
 		        log.info "${app.label} Not the right days to water - Water not turned on."
-		        state.msg = "${app.label} Didn't pass restriction check - Watering Days. ${relayDevice} will not turn on."
+		        state.msg = "${app.label} Didn't pass restriction check - Watering Days. Irrigation will not turn on."
 	}
 }
 
